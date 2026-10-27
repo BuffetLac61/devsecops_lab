@@ -1,0 +1,8 @@
+default:
+  tags: [rpi]
+
+test-runner:
+  image: alpine:3.20
+  script:
+    - uname -m
+    - echo "Le runner du Pi fonctionne"
