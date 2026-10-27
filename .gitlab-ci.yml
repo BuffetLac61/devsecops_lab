@@ -8,6 +8,6 @@ test-runner:
     - echo "Le runner du Pi fonctionne"
 
 test-docker:
-  image: docker:27-cli
+  image: docker:29-cli
   script:
     - docker version
