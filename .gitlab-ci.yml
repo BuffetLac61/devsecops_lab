@@ -6,3 +6,8 @@ test-runner:
   script:
     - uname -m
     - echo "Le runner du Pi fonctionne"
+
+test-docker:
+  image: docker:27-cli
+  script:
+    - docker version
