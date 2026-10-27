@@ -1,0 +1,3 @@
+27/10/2026 0:00–0:30
+Créer le projet GitLab avec les dossiers infra/ app/ k8s/ policies/ vault/ falco/ mcp/ docs/, le README et docs/journal.md. Miroir vers GitHub : repo GitHub vide (sans README ni licence), token à granularité fine limité à ce repo (Contents en lecture et écriture, avec expiration), puis Settings > Repository > Mirroring repositories en Push. Cocher « Mirror only protected branches » pour que la branche demo de la DJ3 reste sur GitLab. En haut du README : « Miroir. Le projet et la CI vivent sur GitLab. »
+chore: structure du repo, README et journal
