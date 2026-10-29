@@ -11,3 +11,29 @@ test-docker:
   image: docker:29-cli
   script:
     - docker version
+
+test-docker:
+  stage: test
+  image: docker:29-cli
+  script:
+    - docker version
+
+build-image:
+  stage: build
+  image: docker:29-cli
+  variables:
+    # Tag = SHA du commit : chaque image est traçable, jamais de "latest"
+    IMAGE: $CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHORT_SHA
+  before_script:
+    # Identifiants éphémères fournis par GitLab pour ce job uniquement
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    # Build amd64 (pour la VM k3s) par émulation sur le Pi ARM
+    - docker build --platform linux/amd64 --tag "$IMAGE" app/
+    - docker push "$IMAGE"
+  after_script:
+    # Le socket est partagé : l'image reste sur le Pi, on la supprime pour ne pas remplir la carte SD
+    - docker image rm "$IMAGE" || true
+    - docker logout "$CI_REGISTRY"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
