@@ -34,6 +34,7 @@ def db() -> dict:
             user = conn.execute("SELECT current_user").fetchone()[0]
     except psycopg.Error as exc:
         # On ne renvoie jamais le détail de l'erreur : il peut révéler l'hôte ou l'utilisateur.
-        raise HTTPException(status_code=503, detail="database unavailable") from exc
+        logger.exception("Connexion à Postgres impossible")
+	raise HTTPException(status_code=503, detail="database unavailable") from exc
     # connected_as sert en DJ2 : on y verra l'utilisateur éphémère créé par Vault.
     return {"database": "ok", "connected_as": user}
