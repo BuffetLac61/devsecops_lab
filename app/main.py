@@ -4,6 +4,9 @@ from pathlib import Path
 import psycopg
 from fastapi import FastAPI, HTTPException
 
+import logging
+logger = logging.getLogger("uvicorn.error")
+
 app = FastAPI(title="devsecops-lab")
 
 
