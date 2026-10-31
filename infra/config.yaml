@@ -1,0 +1,8 @@
+disable:
+  - traefik       # pas besoin d'ingress : on passera par port-forward
+  - servicelb     # évite que k3s occupe des ports de l'hôte
+write-kubeconfig-mode: "0600"
+kubelet-arg:
+  - "system-reserved=memory=1Gi"
+  - "kube-reserved=memory=1Gi"
+  - "eviction-hard=memory.available<500Mi"
