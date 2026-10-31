@@ -6,3 +6,8 @@ chore: structure du repo, README et journal
 Sur le Pi (OS 64 bits) : Docker, gitlab-runner en executor Docker, tag rpi, concurrent = 1. Créer le runner depuis l'interface du projet GitLab et ne jamais committer son token. Activer l'émulation amd64 avec l'image tonistiigi/binfmt. 
 Attention risque : un runner qui accède au socket Docker équivaut à root sur le Pi > acceptable pour un lab 
 Attention le piège au moment de faire register sur la PI pour register un nouveau runner qui va aller taper sur gitlab pour chercher des jobs, je l'ai pas fait avec sudo la première fois et du coup le fichier de conf c'est créé dans mon home et pas dans /etc/... runner machin. On a donc bien refait le register en sudo
+
+31/10 4h
+Sur le serveur debian, install de kube pour avoir mon noeud ready, choix de ne pas virtualiser et de faire trouner 
+le noeuds directement sur l'hôte car la virtualisation est désactivée dans le BIOS et il me manque le cable pour brancher un écra, au serveur
+écriture du fichier config.yaml pour k3s et établissement des bonne permission pour config.yaml et k3s.yaml
