@@ -23,9 +23,8 @@ spec:
     spec:
       serviceAccountName: app
       automountServiceAccountToken: false
-      # À décommenter si le projet GitLab est privé (voir le deploy token) :
-      # imagePullSecrets:
-      #   - name: gitlab-registry
+      imagePullSecrets:
+         - name: gitlab-registry
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001        # le même UID que dans le Dockerfile
