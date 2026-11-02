@@ -7,6 +7,12 @@ set -euo pipefail
 NS=vault
 POD=vault-0
 
+# Audience des jetons par défaut de k3s (champ "aud" d'un jeton de ServiceAccount).
+# Les composants de vault-db-injector (injecteur, renewer, revoker) se connectent à Vault
+# avec ce jeton par défaut : le chart 3.2.9 ne leur monte pas de jeton d'audience "vault".
+# Les pods applicatifs, eux, présentent un jeton d'audience "vault" (tokenRequestAudiences).
+K8S_DEFAULT_AUDIENCE="https://kubernetes.default.svc.cluster.local"
+
 # Lance une commande vault dans le pod, avec le token root du mode dev.
 # "root" est la valeur par défaut du mode dev : un vrai Vault n'utilise jamais le token root au quotidien.
 v() {
@@ -168,7 +174,7 @@ path "auth/token/renew-self" {
 }
 HCL
 
-echo "== Rôles Kubernetes : un par ServiceAccount, avec l'audience vault"
+echo "== Rôles Kubernetes : un par ServiceAccount"
 for component in vault-db-injector vault-db-injector-renewer vault-db-injector-revoker; do
   case "$component" in
     vault-db-injector)         policy=vault-db-injector ;;
@@ -178,7 +184,7 @@ for component in vault-db-injector vault-db-injector-renewer vault-db-injector-r
   v write "auth/kubernetes/role/$component" \
     bound_service_account_names="$component" \
     bound_service_account_namespaces=vault-db-injector \
-    audience=vault \
+    audience="$K8S_DEFAULT_AUDIENCE" \
     token_policies="$policy" \
     token_ttl=1h \
     token_max_ttl=24h
