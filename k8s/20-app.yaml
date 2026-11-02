@@ -35,7 +35,7 @@ spec:
       containers:
         - name: app
           # Tag = SHA du dernier commit construit : jamais latest... pris dans container registry sur gitlab 
-          image: registry.gitlab.com/buffetlac61-group/devsecops_lab/app:registry.gitlab.com/buffetlac61-group/devsecops_lab/app:ef3a4dfa
+          image: registry.gitlab.com/buffetlac61-group/devsecops_lab/app:ef3a4dfa
           ports:
             - name: http
               containerPort: 8000
