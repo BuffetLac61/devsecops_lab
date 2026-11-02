@@ -1,0 +1,33 @@
+# Valeurs Helm de vault-db-injector pour le lab : mode NRI + projected-SA.
+# Référence : https://numberly.github.io/vault-db-injector/reference/helm-values/
+vaultDbInjector:
+  configuration:
+    # Vault du lab, joint par son Service. En HTTP car mode dev : HTTPS en production.
+    vaultAddress: "http://vault.vault.svc.cluster.local:8200"
+    vaultAuthPath: "kubernetes"
+    # Un rôle Vault par composant, chacun avec sa propre policy (moindre privilège).
+    kubeRole: "vault-db-injector"
+    kubeRoleRenewer: "vault-db-injector-renewer"
+    kubeRoleRevoker: "vault-db-injector-revoker"
+    # Chaque pod s'authentifie auprès de Vault avec son propre ServiceAccount.
+    useProjectedSA: true
+    tokenRequestAudiences:
+      - vault
+    # Carnet de bord : montage KV vault-db-injector, sous-dossier "lab" (repris dans les policies).
+    vaultSecretName: "vault-db-injector"
+    vaultSecretPrefix: "lab"
+    # Sentry est activé par défaut avec une adresse factice : on le coupe.
+    sentry: false
+    logLevel: "info"
+  # Un seul serveur : une réplique de chaque composant suffit (2, 4 et 4 par défaut).
+  injector:
+    replicas: 1
+  renewer:
+    replicas: 1
+  revoker:
+    replicas: 1
+
+# Le plugin NRI substitue les vrais identifiants à la création du conteneur.
+nri:
+  enabled: true
+  pluginIndex: "10"

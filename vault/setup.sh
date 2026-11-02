@@ -67,6 +67,8 @@ unset VAULT_PG_PASSWORD
 v write -force database/rotate-root/postgres
 
 echo "== Rôle app-readonly : des utilisateurs éphémères, membres de app_readonly"
+# Écart volontaire avec la doc de vault-db-injector, qui révoque avec REASSIGN OWNED + DROP OWNED :
+# nos utilisateurs sont en lecture seule et ne possèdent aucun objet, un DROP ROLE suffit.
 v write database/roles/app-readonly \
   db_name=postgres \
   creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE app_readonly;" \
@@ -74,6 +76,126 @@ v write database/roles/app-readonly \
   default_ttl=1h \
   max_ttl=24h
 
+echo "== KV v2 : carnet de bord de vault-db-injector"
+v secrets list | grep '^vault-db-injector/' >/dev/null || v secrets enable -path=vault-db-injector -version=2 kv
+
+echo "== Policies de vault-db-injector (chemins KV limités au préfixe du cluster : lab)"
+v_stdin policy write vault-db-injector - <<'HCL'
+path "vault-db-injector/data/lab/+" {
+  capabilities = ["create", "update"]
+}
+path "vault-db-injector/metadata/lab/+" {
+  capabilities = ["create", "update"]
+}
+path "auth/kubernetes/role/*" {
+  capabilities = ["read"]
+}
+path "sys/leases/lookup" {
+  capabilities = ["update"]
+}
+path "sys/health" {
+  capabilities = ["read"]
+}
+HCL
+
+v_stdin policy write vault-db-renewer - <<'HCL'
+path "vault-db-injector/data/lab/+" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+path "vault-db-injector/metadata/lab/+" {
+  capabilities = ["read", "list", "delete"]
+}
+path "auth/token/renew" {
+  capabilities = ["update"]
+}
+path "auth/token/lookup" {
+  capabilities = ["update"]
+}
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+path "sys/leases/renew" {
+  capabilities = ["update"]
+}
+path "sys/leases/lookup" {
+  capabilities = ["update"]
+}
+path "auth/token/revoke-orphan" {
+  capabilities = ["update", "sudo"]
+}
+path "sys/leases/revoke" {
+  capabilities = ["update"]
+}
+path "sys/health" {
+  capabilities = ["read"]
+}
+HCL
+
+v_stdin policy write vault-db-revoker - <<'HCL'
+path "vault-db-injector/data/lab/+" {
+  capabilities = ["read", "delete"]
+}
+path "vault-db-injector/metadata/lab/+" {
+  capabilities = ["read", "list", "delete"]
+}
+path "auth/token/revoke" {
+  capabilities = ["update"]
+}
+path "auth/token/revoke-orphan" {
+  capabilities = ["update", "sudo"]
+}
+path "sys/leases/revoke" {
+  capabilities = ["update"]
+}
+path "sys/leases/lookup" {
+  capabilities = ["update"]
+}
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+path "sys/health" {
+  capabilities = ["read"]
+}
+HCL
+
+echo "== Policy de l'app : lire uniquement ses propres identifiants"
+v_stdin policy write app-readonly - <<'HCL'
+path "database/creds/app-readonly" {
+  capabilities = ["read"]
+}
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+HCL
+
+echo "== Rôles Kubernetes : un par ServiceAccount, avec l'audience vault"
+for component in vault-db-injector vault-db-injector-renewer vault-db-injector-revoker; do
+  case "$component" in
+    vault-db-injector)         policy=vault-db-injector ;;
+    vault-db-injector-renewer) policy=vault-db-renewer ;;
+    vault-db-injector-revoker) policy=vault-db-revoker ;;
+  esac
+  v write "auth/kubernetes/role/$component" \
+    bound_service_account_names="$component" \
+    bound_service_account_namespaces=vault-db-injector \
+    audience=vault \
+    token_policies="$policy" \
+    token_ttl=1h \
+    token_max_ttl=24h
+done
+
+# Le rôle de l'app porte le même nom que le rôle database, comme dans les exemples de la doc.
+# token_period est obligatoire en mode projected-SA : sans lui, le token du pod expire à
+# token_max_ttl et les identifiants de l'app avec lui.
+v write auth/kubernetes/role/app-readonly \
+  bound_service_account_names=app \
+  bound_service_account_namespaces=app \
+  audience=vault \
+  token_policies=app-readonly \
+  token_type=service \
+  token_period=24h
+
 v auth list
 v secrets list
+v policy list
 echo "== Configuration terminée"

@@ -1,4 +1,5 @@
 # Compte dédié à l'app, sans token monté : l'app n'a aucun droit sur l'API Kubernetes.
+# En mode projected-SA, c'est l'injecteur qui demande à Kubernetes un jeton pour ce compte.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -20,21 +21,27 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: app
+        vault-db-injector: "true"          # sans ce label, l'injecteur ignore le pod
+      annotations:
+        db-creds-injector.numberly.io/cluster: database                 # montage du moteur database
+        db-creds-injector.numberly.io/pg.role: app-readonly             # rôle Vault à utiliser
+        db-creds-injector.numberly.io/pg.mode: classic                  # deux variables : utilisateur et mot de passe
+        db-creds-injector.numberly.io/pg.env-key-dbuser: DB_USER        # lue par read_setting() dans main.py
+        db-creds-injector.numberly.io/pg.env-key-dbpassword: DB_PASSWORD
     spec:
       serviceAccountName: app
       automountServiceAccountToken: false
       imagePullSecrets:
-         - name: gitlab-registry
+        - name: gitlab-registry
       securityContext:
         runAsNonRoot: true
-        runAsUser: 10001        # le même UID que dans le Dockerfile
+        runAsUser: 10001
         runAsGroup: 10001
-        fsGroup: 10001          # permet de lire les fichiers du Secret monté (mode 0440)
+        fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: app
-          # Tag = SHA du dernier commit construit : jamais latest... pris dans container registry sur gitlab 
           image: registry.gitlab.com/buffetlac61-group/devsecops_lab/app:ef3a4dfa
           ports:
             - name: http
@@ -44,11 +51,8 @@ spec:
               value: postgres
             - name: DB_NAME
               value: app
-            # main.py lit ces fichiers grâce à read_setting()
-            - name: DB_USER_FILE
-              value: /var/run/secrets/db/username
-            - name: DB_PASSWORD_FILE
-              value: /var/run/secrets/db/password
+            # DB_USER et DB_PASSWORD ne sont plus définis ici : vault-db-injector les injecte.
+            # Le Secret statique postgres-credentials n'est plus monté dans l'app.
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -73,16 +77,9 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 20
           volumeMounts:
-            - name: db-credentials
-              mountPath: /var/run/secrets/db
-              readOnly: true
             - name: tmp
               mountPath: /tmp
       volumes:
-        - name: db-credentials
-          secret:
-            secretName: postgres-credentials
-            defaultMode: 0440
         - name: tmp
           emptyDir: {}
 ---
