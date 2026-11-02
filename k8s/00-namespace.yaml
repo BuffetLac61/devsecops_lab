@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+  labels:
+    # Pod Security Admission : Kubernetes refuse tout pod de ce namespace
+    # qui ne respecte pas le profil "restricted" (non-root, aucune capability, seccomp...).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

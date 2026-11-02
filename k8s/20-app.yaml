@@ -1,0 +1,101 @@
+# Compte dédié à l'app, sans token monté : l'app n'a aucun droit sur l'API Kubernetes.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+  namespace: app
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app
+    spec:
+      serviceAccountName: app
+      automountServiceAccountToken: false
+      # À décommenter si le projet GitLab est privé (voir le deploy token) :
+      # imagePullSecrets:
+      #   - name: gitlab-registry
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001        # le même UID que dans le Dockerfile
+        runAsGroup: 10001
+        fsGroup: 10001          # permet de lire les fichiers du Secret monté (mode 0440)
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          # Tag = SHA du dernier commit construit : jamais latest... pris dans container registry sur gitlab 
+          image: registry.gitlab.com/buffetlac61-group/devsecops_lab/app:registry.gitlab.com/buffetlac61-group/devsecops_lab/app:b73d445a
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_NAME
+              value: app
+            # main.py lit ces fichiers grâce à read_setting()
+            - name: DB_USER_FILE
+              value: /var/run/secrets/db/username
+            - name: DB_PASSWORD_FILE
+              value: /var/run/secrets/db/password
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - name: db-credentials
+              mountPath: /var/run/secrets/db
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: db-credentials
+          secret:
+            secretName: postgres-credentials
+            defaultMode: 0440
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  namespace: app
+spec:
+  selector:
+    app.kubernetes.io/name: app
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
