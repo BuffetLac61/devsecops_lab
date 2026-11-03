@@ -15,7 +15,7 @@ Lab DevSecOps personnel : une chaîne complète, du commit jusqu'au pod en produ
 ## Architecture
 
 ```
- Ton PC ──git push (SSH)──▶ GitLab.com ◀──jobs, push d'image── Raspberry Pi (runner CI)
+ PC ──git push (SSH)──▶ GitLab.com ◀──jobs, push d'image── Raspberry Pi (runner CI)
                                ▲
                                │ git pull (clé de déploiement en lecture seule)
                                │ pull d'image (deploy token read_registry)
